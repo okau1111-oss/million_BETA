@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Первый миллион</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:auto;background:#121417;color:#d9dbde;font:14px/1.45 "Segoe UI",Roboto,Arial,sans-serif;max-width:480px;min-height:100vh;padding:14px 14px 84px}
+h2{margin:8px 0 12px;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:2px;color:#b8975a}
+.card{background:#1b1f24;border:1px solid #2a3037;border-radius:4px;padding:12px 14px;margin-bottom:10px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.muted{color:#7f8893;font-size:12px}
+.tag{color:#b8975a;font-size:11px}
+button{background:#232a31;color:#d9dbde;border:1px solid #3a434c;border-radius:3px;padding:9px 14px;font-size:13px;margin:6px 6px 0 0;cursor:pointer}
+button:hover{border-color:#b8975a}
+button.bad{border-color:#7a3a3a;color:#d99a9a;background:#241a1a}
+button.good{border-color:#3d6b57;color:#9fd1b8;background:#17221d}
+button:disabled{opacity:.35;cursor:default}
+input{width:100%;padding:11px;border-radius:3px;border:1px solid #3a434c;background:#1b1f24;color:#d9dbde;margin:8px 0;font-size:14px}
+.bar{height:3px;background:#2a3037;margin-top:6px}
+.bar i{display:block;height:100%;background:#b8975a}
+.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:#171a1e;border-top:1px solid #2a3037}
+.tabs button{flex:1;border:0;border-radius:0;margin:0;padding:12px 4px;background:none;color:#7f8893;font-size:11px;text-transform:uppercase;letter-spacing:1px}
+.tabs button.on{color:#b8975a;background:#1b1f24;border-top:2px solid #b8975a}
+.tabs svg{display:block;margin:0 auto 4px;width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.5}
+.msg{background:#20262d;border-left:2px solid #b8975a;padding:10px 12px;margin:8px 0}
+.me{border-color:#b8975a}
+.star{color:#b8975a}
+</style></head><body><div id="app"></div>
+<script>
+const CHANNEL_URL='https://t.me/ИМЯ_КАНАЛА';
+const TG=window.Telegram&&Telegram.WebApp,INIT=TG?TG.initData:'';
+if(TG){TG.ready();TG.expand()}
+function openChannel(){if(TG&&TG.openTelegramLink)TG.openTelegramLink(CHANNEL_URL);else window.open(CHANNEL_URL,'_blank')}
+const NAMES=['Гена','Маша','Олег','Аня','Витя','Света','Игорь','Лена','Паша','Катя','Рома','Юля'];
+const SPHERES={'IT':['Разработчик','Тестировщик','Дизайнер'],'Транспорт':['Водитель','Диспетчер','Механик'],'Ресторан':['Повар','Официант','Администратор'],'Строительство':['Прораб','Каменщик','Сметчик']};
+const OFF={name:['Гараж','Коворкинг','Офис','Этаж'],cap:[3,6,12,25],cost:[0,8000,25000,80000],rent:[1000,2500,6000,15000]};
+const TRAITS={'Карьерист':'чаще просит повышения','Семьянин':'чаще болеет, ценит выходные','Душа компании':'поднимает настроение коллегам','Ленивый гений':'сильный, но теряет репутацию'};
+const MODES=['Спокойный','Стандартный','Аврал'],MM=[.85,1,1.3],MR=[1,0,-2];
+const OPT={salary:['Нет, работай как работаешь','Посмотрим позже','Повышаю на 500 ₽'],sick:['Мне всё равно, выходи','Поправляйся','Оплачу лечение (−800 ₽)'],fracture:['Мне всё равно, выходи','Поправляйся','Оплачу лечение (−800 ₽)'],chat:['Купи сам','Разберёмся','Закажу новую (−500 ₽)'],quit:['Скатертью дорога','Давай поговорим','Повышу зарплату и дам премию']};
+const TXT={salary:'Мне кажется, зарплата маловата. Можно повысить?',sick:'Я заболел, в этом месяце меня не будет.',fracture:'Сломал ногу, пару месяцев не смогу работать.',chat:'Кофемашина опять сломалась, работать невозможно.',quit:'Я думаю уволиться. Меня тут не ценят.'};
+const IC={company:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13"/><path d="M9 7V4h6v3M3 13h18"/></svg>',chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4z"/></svg>',shop:'<svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/></svg>',top:'<svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/></svg>'};
+const rnd=(a,b)=>Math.floor(Math.random()*(b-a+1))+a;
+const pick=a=>a[rnd(0,a.length-1)];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const stars=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+const fmt=n=>Math.round(n).toLocaleString('ru-RU')+' ₽';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S=JSON.parse(localStorage.getItem('game2')||'null'),uid=S?S.uid:1,TOP=[],T0;
+const emp=id=>S.emps.find(e=>e.id===id);
+const addRep=(e,d)=>{e.rep=clamp(e.rep+d,0,100)};
+const allRep=d=>S.emps.forEach(e=>addRep(e,d));
+
+async function api(path,body){if(!INIT)return null;try{const r=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:INIT,...body})});return await r.json()}catch(e){return null}}
+function sync(){clearTimeout(T0);T0=setTimeout(()=>api('/api/save',{state:S,name:S.name,score:value()}),1500)}
+function save(){if(S){S.uid=uid;localStorage.setItem('game2',JSON.stringify(S));sync()}render()}
+async function init(){
+ if(INIT){const r=await api('/api/load',{});if(r&&r.state&&(!S||(r.state.month||0)>(S.month||0))){S=r.state;uid=S.uid||1}
+  const t=await api('/api/top',{});if(t&&t.top)TOP=t.top}
+ render()}
+function reset(force){if(force||confirm('Начать заново?')){localStorage.removeItem('game2');api('/api/reset',{});S=null;render()}}
+
+function value(){return S.money+3000*S.emps.length+S.pop*100-S.debt}
+function board(){return [...S.bots.map(b=>({name:b.name,v:b.v})),...TOP.filter(x=>!x.me).map(x=>({name:x.name,v:x.v,real:1})),{name:S.name+' (вы)',v:value(),me:1}].sort((a,b)=>b.v-a.v)}
+function rank(){return board().findIndex(x=>x.me)+1}
+
+function newEmp(){const exp=rnd(1,5),work=rnd(1,5),conf=rnd(1,5);
+ return{id:uid++,name:pick(NAMES),role:pick(SPHERES[S.sphere]),exp,work,conf,trait:Math.random()<.6?pick(Object.keys(TRAITS)):'',salary:1500+(exp+work)*400,rep:50,sick:0,quit:false,seen:false}}
+function income(e){if(e.sick>0)return 0;
+ const boost=S.boost&&S.boost.until>=S.month?S.boost.m:1;
+ return e.work*2200*(e.trait==='Ленивый гений'?1.25:1)*MM[S.mode]*boost*(1+.15*S.up.pc)*(.7+.1*e.exp)*(1+S.pop/200)*(1+.05*S.up.desk)*(.7+.3*e.rep/100)}
+
+function start(sphere){const name=document.getElementById('cn').value.trim();
+ if(!name){alert('Введите название компании');return}
+ S={sphere,name,money:10000,debt:0,month:1,pop:10,mode:1,office:0,emps:[],msgs:[],event:null,orders:[],cands:[],delayed:[],boost:null,top1:0,won:false,up:{pc:0,desk:0,coffee:0},bots:[],report:[],note:'',tab:'company'};
+ const g=newEmp();Object.assign(g,{name:'Гена',exp:3,work:3,conf:3,salary:3900,trait:'',seen:true});S.emps.push(g);
+ const A=['Альфа','Вектор','Гранд','Нова','Прайм','Орион','Титан','Атлас'],B=['Софт','Групп','Тех','Лайн','Строй'];
+ for(let i=0;i<100;i++)S.bots.push({name:pick(A)+pick(B)+' '+(i+1),v:rnd(3000,40000),r:rnd(10,45)/10});
+ genMonth();save()}
+
+const EV={
+birthday:{make(){const e=pick(S.emps);return{emp:e.id,text:`У ${e.name} сегодня день рождения. Что сделаем?`,opts:['Дать выходной','Устроить праздник (−1500 ₽)','Ничего не делать']}},
+ res(k,ev){const e=emp(ev.emp);if(!e)return'';
+  if(k===0){addRep(e,12+(e.trait==='Семьянин'?5:0));e.sick=Math.max(e.sick,1);return`${e.name} доволен, но в этом месяце не работает.`}
+  if(k===1){allRep(8);S.money-=1500;return'Праздник удался: репутация всех выросла.'}
+  addRep(e,-10);return`${e.name} обиделся.`}},
+tax:{make(){return{text:'Пришла налоговая проверка.',opts:['Заплатить штраф 1500 ₽','Договориться неофициально (риск)','Проигнорировать']}},
+ res(k){if(k===0){S.money-=1500;return'Штраф оплачен.'}
+  if(k===1){if(Math.random()<.5)return'Удалось договориться.';S.money-=4000;S.pop=clamp(S.pop-5,0,100);return'Не вышло: штраф 4000 ₽, популярность −5.'}
+  S.money-=3000;S.pop=clamp(S.pop-3,0,100);return'Проверка нашла нарушения: −3000 ₽, популярность −3.'}},
+rush:{make(){return{text:'Клиент просит срочный заказ.',opts:['Взяться (риск аврала)','Взять обычный заказ (+1500 ₽)','Отказаться']}},
+ res(k){if(k===0){if(Math.random()<.6){S.money+=6000;return'Заказ выполнен: +6000 ₽.'}S.money-=2000;allRep(-3);return'Аврал не удался: −2000 ₽, репутация всех −3.'}
+  if(k===1){S.money+=1500;return'Обычный заказ: +1500 ₽.'}S.pop=clamp(S.pop-1,0,100);return'Отказались. Популярность −1.'}},
+bribe:{make(){return{text:'Инспектор намекает, что вопрос решается за 3000 ₽.',opts:['Заплатить (−3000 ₽)','Отказать','Пожаловаться в инстанцию']}},
+ res(k){if(k===0){S.money-=3000;allRep(-3);return'Вопрос закрыт, но сотрудники узнали и не одобряют (репутация −3).'}
+  if(k===1){if(Math.random()<.5){S.money-=2000;return'Инспектор выписал штраф 2000 ₽.'}return'Отказ прошёл без последствий.'}
+  S.money-=1500;S.pop=clamp(S.pop+3,0,100);allRep(4);return'Разбирательство: −1500 ₽, популярность +3, коллектив уважает решение.'}},
+mistake:{make(){return{text:'Сотрудник допустил ошибку в заказе, клиент недоволен.',opts:['Признать и вернуть деньги (−3000 ₽)','Скрыть','Свалить на сотрудника']}},
+ res(k){if(k===0){S.money-=3000;S.pop=clamp(S.pop+2,0,100);return'Честность оценили: популярность +2.'}
+  if(k===1){if(Math.random()<.5){S.money-=2000;S.pop=clamp(S.pop-8,0,100);return'Всё вскрылось: −2000 ₽, популярность −8.'}return'Обошлось.'}
+  const e=pick(S.emps);if(e)addRep(e,-15);allRep(-2);return'Коллектив видит несправедливость: репутация падает.'}},
+poach:{make(){const e=[...S.emps].sort((a,b)=>b.work+b.exp-a.work-a.exp)[0];return{emp:e.id,text:`Конкурент переманивает ${e.name} и предлагает больше денег.`,opts:['Встречное предложение (+700 ₽ к зарплате)','Отпустить','Не реагировать']}},
+ res(k,ev){const e=emp(ev.emp);if(!e)return'';
+  if(k===0){e.salary+=700;addRep(e,8);return`${e.name} остаётся.`}
+  if(k===1){e.quit=true;return`${e.name} уйдёт в конце месяца.`}
+  if(Math.random()<.5){e.quit=true;return`${e.name} ушёл к конкуренту.`}return`${e.name} остался сам.`}},
+trend:{make(){return{text:'В отрасли растёт спрос. Как воспользуемся?',opts:['Вложиться в рекламу (−2000 ₽)','Работать как обычно','Поднять цены (риск)']}},
+ res(k){if(k===0){S.money-=2000;S.boost={m:1.25,until:S.month+3};return'Доход +25% на 3 месяца.'}
+  if(k===1){S.boost={m:1.1,until:S.month+3};return'Доход +10% на 3 месяца.'}
+  if(Math.random()<.5){S.boost={m:1.4,until:S.month+2};return'Клиенты согласились: доход +40% на 2 месяца.'}
+  S.pop=clamp(S.pop-3,0,100);return'Клиенты недовольны: популярность −3.'}},
+newyear:{make(){return{text:'Новый год. Что делаем с командой?',opts:['Корпоратив и премии (−4000 ₽)','Скромное поздравление','Ничего']}},
+ res(k){if(k===0){S.money-=4000;allRep(10);return'Команда в восторге: репутация всех +10.'}if(k===1){allRep(3);return'Репутация всех +3.'}allRep(-4);return'Коллектив разочарован: репутация всех −4.'}}};
+
+function msgType(e){const p=['salary','sick','fracture','chat'];if(e.rep<35&&Math.random()<.7)return'quit';
+ if(e.trait==='Карьерист')p.push('salary','salary');if(e.trait==='Семьянин')p.push('sick','sick');return pick(p)}
+function genMonth(){
+ const CL=['ООО Вектор','ИП Орлов','Группа Север','АО Прогресс','Студия Квадрат','Фирма Альянс'];
+ S.msgs=[];S.cands=[newEmp(),newEmp(),newEmp()];
+ S.orders=[0,1,2].map(()=>({id:uid++,name:pick(CL),pay:rnd(2,8)*1000,d:rnd(1,5),take:false}));
+ [...S.emps].sort(()=>Math.random()-.5).slice(0,Math.min(2,S.emps.length)).forEach(e=>{
+  const t=msgType(e);if(t==='sick')e.sick=1;if(t==='fracture')e.sick=2;
+  S.msgs.push({id:uid++,emp:e.id,type:t,text:TXT[t],done:false,res:''})});
+ let k;if(S.month%12===0)k='newyear';else{const ks=Object.keys(EV).filter(x=>x!=='newyear'&&(S.emps.length>0||!['birthday','poach'].includes(x))&&(x!=='poach'||S.month>3));k=pick(ks)}
+ S.event={type:k,...EV[k].make()}}
+function answerEvent(k){const ev=S.event;S.note=EV[ev.type].res(k,ev);S.event=null;save()}
+
+function answerMsg(id,k){const m=S.msgs.find(x=>x.id===id);if(m.done)return;const e=emp(m.emp);if(!e)return;
+ let d=k===0?-8:k===2?10:0;
+ if(k===1){const r=Math.random(),pm=.15+.06*e.conf,pp=.4-.04*e.conf;d=r<pm?-6:(r<pm+pp?6:0)}
+ if(m.type==='salary'){if(k===2){e.salary+=500;if(e.trait==='Карьерист')d+=4;S.delayed.push({at:S.month+2,emp:e.id,d:4,text:'ценит повышение'})}
+  if(k===0)S.delayed.push({at:S.month+2,emp:e.id,d:-8,text:'затаил обиду из-за отказа'})}
+ if((m.type==='sick'||m.type==='fracture')&&k===2)S.money-=800;
+ if(m.type==='chat'&&k===2)S.money-=500;
+ if(m.type==='quit'){if(k===2){e.salary+=700;d=15}if(k===0){e.quit=true;d=0}}
+ addRep(e,d);m.done=true;m.res=m.type==='quit'&&k===0?'Он уйдёт в конце месяца.':`Репутация ${d>0?'+':''}${d}`;save()}
+
+function nextMonth(){
+ if(S.event){alert('Сначала решите событие во вкладке «Компания»');return}
+ const log=[];let inc=0,sal=0;
+ S.msgs.filter(m=>!m.done).forEach(m=>{const e=emp(m.emp);if(e)addRep(e,-3)});
+ S.orders.filter(o=>o.take).forEach(o=>{
+  const h=S.emps.filter(e=>!e.sick),avg=h.length?h.reduce((s,e)=>s+e.exp,0)/h.length:0,p=clamp(.45+.12*(avg-o.d),.1,.95);
+  if(Math.random()<p){inc+=o.pay;S.pop=clamp(S.pop+1,0,100);log.push(`${o.name}: заказ выполнен, +${fmt(o.pay)}`)}
+  else{S.money-=o.pay*.2;S.pop=clamp(S.pop-2,0,100);log.push(`${o.name}: заказ провален, штраф ${fmt(o.pay*.2)}`)}});
+ S.emps.forEach(e=>{inc+=income(e);sal+=e.salary;if(e.sick>0)e.sick--;if(S.mode===2&&Math.random()<.1)e.sick=Math.max(e.sick,1)});
+ const rent=OFF.rent[S.office],intr=S.debt*.04;S.money+=inc-sal-rent-intr;
+ log.unshift(`Доход ${fmt(inc)}, зарплаты ${fmt(sal)}, аренда ${fmt(rent)}`+(intr?`, проценты ${fmt(intr)}`:''));
+ S.delayed=S.delayed.filter(d=>{if(d.at>S.month)return true;const e=emp(d.emp);if(e){addRep(e,d.d);log.push(`${e.name}: ${d.text}`)}return false});
+ S.emps.forEach(e=>{addRep(e,MR[S.mode]+(S.up.coffee?1:0)-(e.trait==='Ленивый гений'?1:0));
+  if(S.emps.some(o=>o.trait==='Душа компании'&&o.id!==e.id))addRep(e,1)});
+ S.emps=S.emps.filter(e=>{if(e.quit||(e.rep<20&&Math.random()<.6)){log.push(`${e.name} уволился`);S.pop=clamp(S.pop-2,0,100);return false}return true});
+ const best=[...S.emps].sort((a,b)=>b.work-a.work)[0];if(best)log.push(`Лучший сотрудник: ${best.name}`);
+ S.pop=clamp(S.pop+rnd(0,2),0,100);
+ S.bots.forEach(b=>b.v*=1+((b.r||3)*(.5+Math.random()))/100);
+ S.month++;S.report=log;S.note='';
+ if(S.money<-5000){alert('Банкротство. Игра начнётся заново.');reset(true);return}
+ S.top1=rank()===1?(S.top1||0)+1:0;
+ if(S.top1>=3&&!S.won){S.won=true;alert('Победа! Ваша компания №1 в топе три месяца подряд. Можно играть дальше.')}
+ genMonth();save()}
+
+function setMode(i){S.mode=i;save()}
+function toggleOrder(id){const o=S.orders.find(x=>x.id===id);if(!o.take&&S.orders.filter(x=>x.take).length>=Math.ceil(S.emps.length/2)){alert('Нет свободных слотов: нужно больше сотрудников');return}o.take=!o.take;save()}
+function loan(){if(S.debt>=30000)return;S.debt+=10000;S.money+=10000;save()}
+function repay(){const a=Math.min(10000,S.debt,S.money);if(a<=0)return;S.debt-=a;S.money-=a;save()}
+function buy(k){if(k==='office'){const c=OFF.cost[S.office+1];if(S.office>=3||S.money<c)return;S.money-=c;S.office++}
+ else{const mx=k==='coffee'?1:5,c=2000*(S.up[k]+1);if(S.up[k]>=mx||S.money<c)return;S.money-=c;S.up[k]++}save()}
+function ad(i){const c=[1500,4000,3000][i];if(S.money<c)return;S.money-=c;let g=[2,6,4][i];
+ if(i===1&&Math.random()<.25){g=-3;S.note='Блогер вызвал скандал: популярность −3.'}S.pop=clamp(S.pop+g,0,100);save()}
+function train(id){const e=emp(id);if(e.exp>=5||S.money<3000)return;S.money-=3000;e.exp++;save()}
+function fire(id){if(confirm('Уволить сотрудника?')){S.emps=S.emps.filter(e=>e.id!==id);S.pop=clamp(S.pop-1,0,100);save()}}
+function interview(i){if(S.money<300)return;S.money-=300;S.cands[i].seen=true;save()}
+function hire(i){const c=S.cands[i];if(S.money<c.salary||S.emps.length>=OFF.cap[S.office])return;S.money-=c.salary;c.seen=true;S.emps.push(c);S.cands.splice(i,1);save()}
+function tab(t){S.tab=t;if(t==='top')api('/api/top',{}).then(r=>{if(r&&r.top){TOP=r.top;render()}});save()}
+
+const skills=(e,hide)=>`Опыт <span class="star">${stars(e.exp)}</span> Работа <span class="star">${stars(e.work)}</span> Конфликт <span class="star">${hide&&!e.seen?'?????':stars(e.conf)}</span>`;
+function viewCompany(){let h='';
+ if(S.report.length)h+=`<div class="card"><b>Итоги месяца</b><br>${S.report.map(esc).join('<br>')}</div>`;
+ if(S.note)h+=`<div class="card">${esc(S.note)}</div>`;
+ if(S.event)h+=`<div class="card me"><b>Событие</b><br>${esc(S.event.text)}<br>`+S.event.opts.map((o,i)=>`<button onclick="answerEvent(${i})">${o}</button>`).join('')+`</div>`;
+ h+=`<div class="card"><span class="muted">Офис: ${OFF.name[S.office]} (${S.emps.length}/${OFF.cap[S.office]}), аренда ${fmt(OFF.rent[S.office])}</span>`;
+ if(S.boost&&S.boost.until>=S.month)h+=`<br><span class="tag">Рост спроса ×${S.boost.m} до месяца ${S.boost.until}</span>`;
+ h+=`<br>Режим работы:<br>`+MODES.map((m,i)=>`<button class="${S.mode===i?'good':''}" onclick="setMode(${i})">${m}</button>`).join('')+`</div>`;
+ h+=`<h2>Заказы</h2><div class="muted">Слотов: ${Math.ceil(S.emps.length/2)}. Шанс зависит от опыта команды.</div>`;
+ S.orders.forEach(o=>{h+=`<div class="card row"><span>${o.name}<br><span class="muted">Сложность ${stars(o.d)} · ${fmt(o.pay)}</span></span><button class="${o.take?'good':''}" onclick="toggleOrder(${o.id})">${o.take?'Взят':'Взять'}</button></div>`});
+ h+=`<div class="card"><span class="muted">Долг: ${fmt(S.debt)} (4% в месяц)</span><br><button onclick="loan()" ${S.debt>=30000?'disabled':''}>Взять 10 000 ₽</button><button onclick="repay()" ${S.debt<=0?'disabled':''}>Погасить</button></div>`;
+ h+=`<h2>Сотрудники</h2>`;
+ S.emps.forEach(e=>{h+=`<div class="card"><div class="row"><b>${e.name}</b><span class="muted">${e.role} · ${fmt(e.salary)}</span></div>
+  ${e.trait?`<div class="tag">${e.trait}: ${TRAITS[e.trait]}</div>`:''}<div class="muted">${skills(e)}</div>
+  <div class="muted">Репутация ${Math.round(e.rep)}${e.sick?' · болеет':''} · доход ${fmt(income(e))}</div><div class="bar"><i style="width:${e.rep}%"></i></div>
+  <button onclick="train(${e.id})" ${e.exp>=5||S.money<3000?'disabled':''}>Обучить −3000 ₽</button><button class="bad" onclick="fire(${e.id})">Уволить</button></div>`});
+ return h+`<button onclick="nextMonth()" style="width:100%;padding:14px">Следующий месяц</button>`}
+function viewChat(){let h='<h2>Мессенджер</h2>';if(!S.msgs.length)h+='<p class="muted">Сообщений нет</p>';
+ S.msgs.forEach(m=>{const e=emp(m.emp);if(!e)return;
+  h+=`<div class="card"><b>${e.name}</b><div class="msg">${m.text}</div>`+(m.done?`<div class="muted">${m.res}</div>`:OPT[m.type].map((o,i)=>`<button class="${['bad','','good'][i]}" onclick="answerMsg(${m.id},${i})">${o}</button>`).join(''))+`</div>`});
+ return h}
+function viewShop(){let h='<h2>Магазин</h2>';
+ [['pc','Компьютеры'],['desk','Рабочие столы'],['coffee','Кофемашина и зона отдыха']].forEach(([k,n])=>{const mx=k==='coffee'?1:5,c=2000*(S.up[k]+1);
+  h+=`<div class="card row"><span>${n} (ур. ${S.up[k]}/${mx})</span><button onclick="buy('${k}')" ${S.up[k]>=mx||S.money<c?'disabled':''}>${S.up[k]>=mx?'Макс':fmt(c)}</button></div>`});
+ h+=`<div class="card row"><span>${S.office>=3?'Лучший офис':'Переезд: '+OFF.name[S.office+1]}</span><button onclick="buy('office')" ${S.office>=3||S.money<OFF.cost[S.office+1]?'disabled':''}>${S.office>=3?'Макс':fmt(OFF.cost[S.office+1])}</button></div>`;
+ h+=`<h2>Реклама</h2>`;
+ [['Соцсети',1500,'популярность +2'],['Блогер',4000,'популярность +6, риск скандала'],['Наружная реклама',3000,'популярность +4']].forEach((a,i)=>{h+=`<div class="card row"><span>${a[0]}<br><span class="muted">${a[2]}</span></span><button onclick="ad(${i})" ${S.money<a[1]?'disabled':''}>${fmt(a[1])}</button></div>`});
+ h+=`<h2>Найм</h2>`;
+ S.cands.forEach((c,i)=>{h+=`<div class="card"><div class="row"><b>${c.name}</b><span class="muted">${c.role}</span></div>
+  ${c.seen&&c.trait?`<div class="tag">${c.trait}</div>`:''}<div class="muted">${skills(c,1)}</div>
+  ${c.seen?'':`<button onclick="interview(${i})" ${S.money<300?'disabled':''}>Собеседование −300 ₽</button>`}
+  <button onclick="hire(${i})" ${S.money<c.salary||S.emps.length>=OFF.cap[S.office]?'disabled':''}>Нанять · ${fmt(c.salary)}</button></div>`});
+ return h}
+function viewTop(){const all=board(),r=all.findIndex(x=>x.me)+1;
+ let h=`<h2>Топ компаний</h2><div class="card me">Ваше место: ${r} из ${all.length}</div>`;
+ all.slice(0,100).forEach((b,i)=>{h+=`<div class="card row ${b.me?'me':''}"><span>${i+1}. ${esc(b.name)}${b.real?' <span class="tag">игрок</span>':''}</span><span class="muted">${fmt(b.v)}</span></div>`});
+ return h}
+
+function render(){const A=document.getElementById('app');
+ if(!S){A.innerHTML=`<h2>Первый миллион</h2><p class="muted">Начни с 10 000 ₽, собери команду и выведи компанию на первое место в топе.</p><input id="cn" placeholder="Название компании"><p class="muted">Выбери сферу:</p>`+Object.keys(SPHERES).map(s=>`<button onclick="start('${s}')">${s}</button>`).join('')+`<p style="margin-top:20px"><button onclick="openChannel()">Канал автора</button></p>`;return}
+ const r=rank();
+ let h=`<div class="row"><h2>${esc(S.name)}</h2><span class="muted">Месяц ${S.month}</span></div>
+ <div class="card"><div class="row"><b>${fmt(S.money)}</b><span class="muted">Популярность ${S.pop}</span></div>
+ <div class="bar"><i style="width:${Math.max(1,101-r)}%"></i></div>
+ <div class="muted">Место: ${r} из ${board().length}. Цель: стать №1${S.top1?' (держите '+S.top1+' из 3 мес.)':''}</div></div>`;
+ h+={company:viewCompany,chat:viewChat,shop:viewShop,top:viewTop}[S.tab]();
+ h+=`<p class="muted" style="text-align:center"><a href="#" onclick="openChannel();return false" style="color:#b8975a">Канал автора</a> · <a href="#" onclick="reset();return false" style="color:#7f8893">Начать заново</a></p>`;
+ h+=`<div class="tabs">`+[['company','Компания'],['chat','Чат'+(S.msgs.some(m=>!m.done)?' ·':'')],['shop','Магазин'],['top','Топ']].map(t=>`<button class="${S.tab===t[0]?'on':''}" onclick="tab('${t[0]}')">${IC[t[0]]}${t[1]}</button>`).join('')+`</div>`;
+ A.innerHTML=h}
+init();
+</script></body></html>
